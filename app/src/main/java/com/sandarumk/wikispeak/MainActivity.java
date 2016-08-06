@@ -17,6 +17,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -25,6 +26,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.BufferedReader;
@@ -45,26 +47,40 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
     private WebView webViewContent;
     private TextToSpeech tts;
     private boolean ttsInitialized;
+    private EditText findEditText;
+    private String speechText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        Button findButton = (Button) findViewById(R.id.find_button);
-        EditText findEditText = (EditText) findViewById(R.id.find_edit_text);
+        ImageButton findButton = (ImageButton) findViewById(R.id.find_button);
+        findEditText = (EditText) findViewById(R.id.find_edit_text);
 
-        webViewContent = (WebView)findViewById(R.id.text_content);
-
-        final String findString = findEditText.getText().toString();
+        webViewContent = (WebView) findViewById(R.id.text_content);
 
         findButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View vw) {
-                Toast.makeText(getBaseContext(), "test" + findString, Toast.LENGTH_LONG).show();
+                String findString = findEditText.getText().toString();
                 TextView textview = (TextView) findViewById(R.id.text_view);
                 textview.setText(findString);
                 new QueryWikipedia().execute(findString);
+            }
+        });
+
+        findViewById(R.id.button_play).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                speak();
+            }
+        });
+
+        findViewById(R.id.button_stop).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                stop();
             }
         });
 
@@ -72,33 +88,38 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
             Intent checkIntent = new Intent();
             checkIntent.setAction(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
             startActivityForResult(checkIntent, 123);
-        }catch (Exception e){
-            Toast.makeText(getApplicationContext(),"No application found for Text to speech",Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Toast.makeText(getApplicationContext(), "No application found for Text to speech", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    protected void onStop()
+    {
+        super.onStop();
+
+        if(ttsInitialized && tts != null){
+            tts.shutdown();
         }
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 123 && !ttsInitialized)
-        {
-            if (resultCode == TextToSpeech.Engine.CHECK_VOICE_DATA_PASS)
-            {
+        if (requestCode == 123 && !ttsInitialized) {
+            if (resultCode == TextToSpeech.Engine.CHECK_VOICE_DATA_PASS) {
                 // success, create the TTS instance
-                tts = new TextToSpeech(this, (TextToSpeech.OnInitListener) this);
-                if (tts!=null)
+                tts = new TextToSpeech(this, this);
+                if (tts != null)
                     ttsInitialized = true;
-            }
-            else
-            {
+            } else {
                 // missing data, install it
                 Intent installIntent = new Intent();
                 installIntent.setAction(
                         TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA);
                 try {
                     startActivity(installIntent);
-                }catch (Exception e){
-                    Toast.makeText(getApplicationContext(),"Unable to find Text To Speech Application",Toast.LENGTH_LONG).show();
+                } catch (Exception e) {
+                    Toast.makeText(getApplicationContext(), "Unable to find Text To Speech Application", Toast.LENGTH_LONG).show();
                 }
             }
         }
@@ -107,14 +128,10 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
     @Override
     public void onInit(int status) {
         if (status == TextToSpeech.SUCCESS) {
-//                    leftToRead = speakFull(res);
-            int result = tts.setLanguage(Locale.UK);
-            Log.d(TAG,"TTS init success");
-//            ttsInitialized = true;
-        }else{
-            Log.d(TAG,"TTS init failed");
+            Log.d(TAG, "TTS init success");
+        } else {
+            Log.d(TAG, "TTS init failed");
         }
-        return;
     }
 
     public class QueryWikipedia extends AsyncTask<String, Void, String> {
@@ -122,7 +139,7 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
         @Override
         protected String doInBackground(String... params) {
             HttpURLConnection httpURLConnection = null;
-            StringBuffer stringBuffer = new StringBuffer("");
+            String query = params[0].trim();
             String content = null;
             BufferedReader bufferedReader = null;
 
@@ -140,7 +157,7 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
                         .appendQueryParameter(QUERY_FORMAT, "json")
                         .appendQueryParameter(QUERY_PROP, "text")
                         .appendQueryParameter(QUERY_SECTION, "0")
-                        .appendQueryParameter(QUERY_PAGE, "India")
+                        .appendQueryParameter(QUERY_PAGE, query)
                         .appendQueryParameter(QUERY_CALLBACK, "?").build();
 
                 String url = buildUri.toString();
@@ -150,9 +167,9 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
 
 
                 //parse json
-                if(data != null && data.length() > 0 ) {
-                    data = data.replace("/**/(","");//remove initical characters
-                    data = data.replace("\"//","https://");
+                if (data != null && data.length() > 0) {
+                    data = data.replace("/**/(", "");//remove initical characters
+                    data = data.replace("\"//", "https://");
                     JSONObject mainObject = new JSONObject(data);
                     content = mainObject.getJSONObject("parse").getJSONObject("text").getString("*");
                     Log.d(TAG, "wiki content =" + content);
@@ -160,10 +177,10 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
 
             } catch (IOException ioex) {
                 ioex.printStackTrace();
-                Log.e("WIKITASK", "onCreateView: IO Exception",ioex);
+                Log.e("WIKITASK", "onCreateView: IO Exception", ioex);
             } catch (JSONException e) {
                 e.printStackTrace();
-                Log.e(TAG, "JSON parsing error",e);
+                Log.e(TAG, "JSON parsing error", e);
             } finally {
                 if (httpURLConnection != null) {
                     httpURLConnection.disconnect();
@@ -178,32 +195,32 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
                 }
             }
 
-                return content;
+            return content;
         }
 
         @Override
         protected void onPostExecute(String result) {
-            if (result !=null){
+            if (result != null) {
 //                Toast.makeText(getApplicationContext(),result,Toast.LENGTH_LONG).show();
-                if(webViewContent != null){
+                if (webViewContent != null) {
                     webViewContent.loadData(result, "text/html", "utf-8");
-                    if(ttsInitialized) {
+                    if (ttsInitialized) {
                         try {
-                            tts.setLanguage(Locale.US);
                             Document doc = Jsoup.parse(result);
                             Elements ps = doc.select("p");
 
-                            String ttsText = "test";
-                            if(ps.size() > 0){
-                                ttsText = ps.get(0).text();
-                            }
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                                 tts.speak(ttsText, TextToSpeech.QUEUE_FLUSH, null, result.toString());
+                            if (ps.size() > 0) {
+                                StringBuilder sb = new StringBuilder();
+                                for (Element element : ps) {
+                                    sb.append(element.text());
+                                }
+                                speechText = sb.toString();
                             } else {
-                                tts.speak(ttsText, TextToSpeech.QUEUE_FLUSH, null);
+                                speechText = null;
                             }
-                        }catch (Exception e){
-                            Log.e(TAG,"Unable to speech", e);
+
+                        } catch (Exception e) {
+                            Log.e(TAG, "Unable to speech", e);
                         }
                     }
                 }
@@ -212,10 +229,34 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
         }
     }
 
+    private void speak() {
+        if (ttsInitialized && speechText != null) {
+            try {
+                tts.setLanguage(Locale.US);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    tts.speak(speechText, TextToSpeech.QUEUE_FLUSH, null, speechText.toString());
+                } else {
+                    tts.speak(speechText, TextToSpeech.QUEUE_FLUSH, null);
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Unable to play text", e);
+            }
+        }else{
+            Toast.makeText(getApplicationContext(),"Text to speech is not supported in this device",Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void stop(){
+        if(ttsInitialized && tts != null){
+            tts.shutdown();
+            tts = new TextToSpeech(this, this);
+        }
+    }
+
     OkHttpClient client = new OkHttpClient();
 
 
-    public  String getData(String url) throws IOException {
+    public String getData(String url) throws IOException {
         Request request = new Request.Builder()
                 .url(url)
                 .build();
