@@ -23,6 +23,9 @@ import android.widget.Toast;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.select.Elements;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -92,7 +95,11 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
                 Intent installIntent = new Intent();
                 installIntent.setAction(
                         TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA);
-                startActivity(installIntent);
+                try {
+                    startActivity(installIntent);
+                }catch (Exception e){
+                    Toast.makeText(getApplicationContext(),"Unable to find Text To Speech Application",Toast.LENGTH_LONG).show();
+                }
             }
         }
     }
@@ -174,15 +181,31 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
                 return content;
         }
 
-        @TargetApi(Build.VERSION_CODES.LOLLIPOP)
         @Override
         protected void onPostExecute(String result) {
             if (result !=null){
 //                Toast.makeText(getApplicationContext(),result,Toast.LENGTH_LONG).show();
                 if(webViewContent != null){
                     webViewContent.loadData(result, "text/html", "utf-8");
-                    tts.setLanguage(Locale.US);
-                    tts.speak("Test", TextToSpeech.QUEUE_FLUSH, null, "fsd");
+                    if(ttsInitialized) {
+                        try {
+                            tts.setLanguage(Locale.US);
+                            Document doc = Jsoup.parse(result);
+                            Elements ps = doc.select("p");
+
+                            String ttsText = "test";
+                            if(ps.size() > 0){
+                                ttsText = ps.get(0).text();
+                            }
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                                 tts.speak(ttsText, TextToSpeech.QUEUE_FLUSH, null, result.toString());
+                            } else {
+                                tts.speak(ttsText, TextToSpeech.QUEUE_FLUSH, null);
+                            }
+                        }catch (Exception e){
+                            Log.e(TAG,"Unable to speech", e);
+                        }
+                    }
                 }
             }
 

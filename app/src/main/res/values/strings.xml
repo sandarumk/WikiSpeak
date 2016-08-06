@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">WikiSpeak</string>
+    <string name="content_tooltip">Type word and press search</string>
 </resources>
