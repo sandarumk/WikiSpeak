@@ -1,28 +1,47 @@
 package com.sandarumk.wikispeak;
 
+import android.annotation.TargetApi;
+import android.content.Context;
+import android.content.Intent;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
+import android.speech.tts.TextToSpeech;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.Html;
 import android.util.Log;
 import android.view.View;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.ProtocolException;
-import java.net.URL;
+import java.util.Locale;
+import java.util.concurrent.ExecutionException;
 
-public class MainActivity extends AppCompatActivity {
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
+public class MainActivity extends AppCompatActivity implements TextToSpeech.OnInitListener {
+
+
+    private static final String TAG = "WIKITASK";
+
+    private WebView webViewContent;
+    private TextToSpeech tts;
+    private boolean ttsInitialized;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,8 +50,10 @@ public class MainActivity extends AppCompatActivity {
 
         Button findButton = (Button) findViewById(R.id.find_button);
         EditText findEditText = (EditText) findViewById(R.id.find_edit_text);
-        final String findString = findEditText.getText().toString();
 
+        webViewContent = (WebView)findViewById(R.id.text_content);
+
+        final String findString = findEditText.getText().toString();
 
         findButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -43,10 +64,51 @@ public class MainActivity extends AppCompatActivity {
                 new QueryWikipedia().execute(findString);
             }
         });
+
+        try {
+            Intent checkIntent = new Intent();
+            checkIntent.setAction(TextToSpeech.Engine.ACTION_CHECK_TTS_DATA);
+            startActivityForResult(checkIntent, 123);
+        }catch (Exception e){
+            Toast.makeText(getApplicationContext(),"No application found for Text to speech",Toast.LENGTH_LONG).show();
+        }
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 123 && !ttsInitialized)
+        {
+            if (resultCode == TextToSpeech.Engine.CHECK_VOICE_DATA_PASS)
+            {
+                // success, create the TTS instance
+                tts = new TextToSpeech(this, (TextToSpeech.OnInitListener) this);
+                if (tts!=null)
+                    ttsInitialized = true;
+            }
+            else
+            {
+                // missing data, install it
+                Intent installIntent = new Intent();
+                installIntent.setAction(
+                        TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA);
+                startActivity(installIntent);
+            }
+        }
+    }
 
-
+    @Override
+    public void onInit(int status) {
+        if (status == TextToSpeech.SUCCESS) {
+//                    leftToRead = speakFull(res);
+            int result = tts.setLanguage(Locale.UK);
+            Log.d(TAG,"TTS init success");
+//            ttsInitialized = true;
+        }else{
+            Log.d(TAG,"TTS init failed");
+        }
+        return;
+    }
 
     public class QueryWikipedia extends AsyncTask<String, Void, String> {
 
@@ -54,7 +116,7 @@ public class MainActivity extends AppCompatActivity {
         protected String doInBackground(String... params) {
             HttpURLConnection httpURLConnection = null;
             StringBuffer stringBuffer = new StringBuffer("");
-            String responseJSONString = null;
+            String content = null;
             BufferedReader bufferedReader = null;
 
             try {
@@ -74,46 +136,27 @@ public class MainActivity extends AppCompatActivity {
                         .appendQueryParameter(QUERY_PAGE, "India")
                         .appendQueryParameter(QUERY_CALLBACK, "?").build();
 
-                URL url;
-                url = new URL(buildUri.toString());
-                Log.d("WIKISPEAK",buildUri.toString());
-                //final String BASE_URL = "http://en.wikipedia.org/w/api.php?action=parse&format=json&prop=text&section=0&page="+myString+"&callback=?"
+                String url = buildUri.toString();
+                Log.d(TAG, "url =" + url);
+                String data = getData(url);
+                Log.d(TAG, "loaded data =" + data);
 
 
-                // create the HTTP connection and connect
-                httpURLConnection = (HttpURLConnection) url.openConnection();
-                httpURLConnection.setRequestMethod("GET");
-                httpURLConnection.connect();
-
-                // input stream from the connection should be assigned to the forcast Json string
-                InputStream inputStream = httpURLConnection.getInputStream();
-                if (inputStream == null) {
-                    responseJSONString = null;
+                //parse json
+                if(data != null && data.length() > 0 ) {
+                    data = data.replace("/**/(","");//remove initical characters
+                    data = data.replace("\"//","https://");
+                    JSONObject mainObject = new JSONObject(data);
+                    content = mainObject.getJSONObject("parse").getJSONObject("text").getString("*");
+                    Log.d(TAG, "wiki content =" + content);
                 }
 
-                bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
-
-
-                String line;
-                while ((line = bufferedReader.readLine()) != null) {
-                    stringBuffer.append(line + "\n");
-                }
-
-                if (stringBuffer.length() == 0) {
-                    responseJSONString = null;
-                }
-
-                responseJSONString = stringBuffer.toString();
-                Log.d("WIKITASK", responseJSONString);
-
-            } catch (MalformedURLException e) {
-                e.printStackTrace();
-            } catch (ProtocolException protocolex) {
-                protocolex.printStackTrace();
-                Log.e("WIKITASK", "onCreateView: Protocol Exception");
             } catch (IOException ioex) {
                 ioex.printStackTrace();
-                Log.e("WIKITASK", "onCreateView: IO Exception");
+                Log.e("WIKITASK", "onCreateView: IO Exception",ioex);
+            } catch (JSONException e) {
+                e.printStackTrace();
+                Log.e(TAG, "JSON parsing error",e);
             } finally {
                 if (httpURLConnection != null) {
                     httpURLConnection.disconnect();
@@ -128,17 +171,34 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
 
-                return responseJSONString;
+                return content;
         }
 
+        @TargetApi(Build.VERSION_CODES.LOLLIPOP)
         @Override
         protected void onPostExecute(String result) {
             if (result !=null){
-                Toast.makeText(getApplicationContext(),result,Toast.LENGTH_LONG).show();
-
+//                Toast.makeText(getApplicationContext(),result,Toast.LENGTH_LONG).show();
+                if(webViewContent != null){
+                    webViewContent.loadData(result, "text/html", "utf-8");
+                    tts.setLanguage(Locale.US);
+                    tts.speak("Test", TextToSpeech.QUEUE_FLUSH, null, "fsd");
+                }
             }
 
         }
+    }
+
+    OkHttpClient client = new OkHttpClient();
+
+
+    public  String getData(String url) throws IOException {
+        Request request = new Request.Builder()
+                .url(url)
+                .build();
+
+        Response response = client.newCall(request).execute();
+        return response.body().string();
     }
 
 
