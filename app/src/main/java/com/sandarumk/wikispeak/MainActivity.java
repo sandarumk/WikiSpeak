@@ -11,9 +11,6 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.android.gms.appindexing.Action;
-import com.google.android.gms.appindexing.AppIndex;
-import com.google.android.gms.common.api.GoogleApiClient;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -43,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(getBaseContext(), "test" + findString, Toast.LENGTH_LONG).show();
                 TextView textview = (TextView) findViewById(R.id.text_view);
                 textview.setText(findString);
+                new QueryWikipedia().execute(findString);
             }
         });
     }
@@ -78,6 +76,7 @@ public class MainActivity extends AppCompatActivity {
 
                 URL url;
                 url = new URL(buildUri.toString());
+                Log.d("WIKISPEAK",buildUri.toString());
                 //final String BASE_URL = "http://en.wikipedia.org/w/api.php?action=parse&format=json&prop=text&section=0&page="+myString+"&callback=?"
 
 
@@ -92,6 +91,9 @@ public class MainActivity extends AppCompatActivity {
                     responseJSONString = null;
                 }
 
+                bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+
+
                 String line;
                 while ((line = bufferedReader.readLine()) != null) {
                     stringBuffer.append(line + "\n");
@@ -102,6 +104,7 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 responseJSONString = stringBuffer.toString();
+                Log.d("WIKITASK", responseJSONString);
 
             } catch (MalformedURLException e) {
                 e.printStackTrace();
@@ -125,9 +128,16 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
 
-            System.out.print(responseJSONString);
+                return responseJSONString;
+        }
 
-            return responseJSONString;
+        @Override
+        protected void onPostExecute(String result) {
+            if (result !=null){
+                Toast.makeText(getApplicationContext(),result,Toast.LENGTH_LONG).show();
+
+            }
+
         }
     }
 
