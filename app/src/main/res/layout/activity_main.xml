@@ -10,8 +10,8 @@
     tools:context="com.sandarumk.wikispeak.MainActivity">
 
     <ImageButton
-        android:layout_width="40dp"
-        android:layout_height="40dp"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
         android:scaleType="fitCenter"
         android:text="Wiki Search"
         android:src="@drawable/search"
@@ -39,19 +39,19 @@
         android:src="@drawable/speak"
         android:layout_marginTop="10dp"
         android:background="@null"
-        android:layout_width="30dp"
-        android:layout_height="30dp" />
+        android:layout_width="55dp"
+        android:layout_height="55dp" />
 
     <ImageButton
         android:id="@+id/button_stop"
         android:scaleType="fitCenter"
-        android:layout_alignTop="@id/button_play"
-        android:layout_toRightOf="@id/button_play"
-        android:layout_marginLeft="10dp"
         android:src="@drawable/stop"
         android:background="@null"
-        android:layout_width="30dp"
-        android:layout_height="30dp"  />
+        android:layout_width="70dp"
+        android:layout_height="70dp"
+        android:layout_below="@+id/find_edit_text"
+        android:layout_toRightOf="@+id/button_play"
+        android:layout_toEndOf="@+id/button_play" />
 
     <TextView
         android:layout_alignTop="@id/button_play"
