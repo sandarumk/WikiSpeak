@@ -65,7 +65,7 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
             public void onClick(View vw) {
                 String findString = findEditText.getText().toString();
                 TextView textview = (TextView) findViewById(R.id.text_view);
-                textview.setText(findString);
+                //textview.setText(findString);
                 new QueryWikipedia().execute(findString);
             }
         });
@@ -200,7 +200,7 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
 
             } catch (IOException ioex) {
                 ioex.printStackTrace();
-                Log.e("WIKITASK", "onCreateView: IO Exception", ioex);
+                Log.e(TAG, "onCreateView: IO Exception", ioex);
             } catch (JSONException e) {
                 e.printStackTrace();
                 Log.e(TAG, "JSON parsing error", e);
