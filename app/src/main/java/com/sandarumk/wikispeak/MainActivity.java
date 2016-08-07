@@ -175,6 +175,29 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
                     Log.d(TAG, "wiki content =" + content);
                 }
 
+                if ( content != null && content.length() > 0) {
+                    try {
+                        Document doc = Jsoup.parse(content);
+                        Elements ps = doc.select("p");
+
+                        if (ps.size() > 0) {
+                            StringBuilder sb = new StringBuilder();
+                            for (Element element : ps) {
+                                sb.append(element.text());
+                            }
+                            content = sb.toString();
+                            if(ttsInitialized) {
+                                speechText = content;
+                            }
+                        } else {
+                            speechText = null;
+                        }
+
+                    } catch (Exception e) {
+                        Log.e(TAG, "Unable to speech", e);
+                    }
+                }
+
             } catch (IOException ioex) {
                 ioex.printStackTrace();
                 Log.e("WIKITASK", "onCreateView: IO Exception", ioex);
@@ -204,25 +227,6 @@ public class MainActivity extends AppCompatActivity implements TextToSpeech.OnIn
 //                Toast.makeText(getApplicationContext(),result,Toast.LENGTH_LONG).show();
                 if (webViewContent != null) {
                     webViewContent.loadData(result, "text/html", "utf-8");
-                    if (ttsInitialized) {
-                        try {
-                            Document doc = Jsoup.parse(result);
-                            Elements ps = doc.select("p");
-
-                            if (ps.size() > 0) {
-                                StringBuilder sb = new StringBuilder();
-                                for (Element element : ps) {
-                                    sb.append(element.text());
-                                }
-                                speechText = sb.toString();
-                            } else {
-                                speechText = null;
-                            }
-
-                        } catch (Exception e) {
-                            Log.e(TAG, "Unable to speech", e);
-                        }
-                    }
                 }
             }
 
